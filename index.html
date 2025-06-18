@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kurukshetra Battle Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            color: white;
+        }
+        
+        body::before {
+            content: "";
+            background-image: url('background.jpg');
+            background-size: cover;
+            background-position: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+        }
+        
+        .button {
+            font-size: 18px;
+            font-weight: bold;
+            padding: 10px 20px;
+            border: 2px solid gold;
+            background: linear-gradient(45deg, gold, orange);
+            color: black;
+            cursor: pointer;
+            box-shadow: 0 0 10px gold;
+            transition: transform 0.2s ease;
+        }
+        
+        .button:hover {
+            transform: scale(1.05);
+        }
+        
+        #game {
+            width: 700px;
+            margin: 30px auto;
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border: 5px double gold;
+        }
+        
+        #battleArea {
+            padding: 10px;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+        
+        .bar {
+            height: 15px;
+            background-color: limegreen;
+            box-shadow: 0 0 10px limegreen;
+            transition: width 0.3s ease;
+        }
+        
+        #arena {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            height: 150px;
+        }
+        
+        #playerImg,
+        #enemyImg {
+            width: 150px;
+        }
+        
+        #playerInfo {
+            text-align: right;
+        }
+        
+        #options,
+        #attackOptions,
+        #statWindow {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        #battleLog {
+            margin-top: 15px;
+            font-size: 14px;
+            height: 120px;
+            overflow-y: auto;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid white;
+        }
+        
+        #coinsDisplay,
+        #timer {
+            font-weight: bold;
+            text-align: center;
+            margin-top: 10px;
+        }
+        
+        .statRow {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 5px 0;
+        }
+        
+        .statLabel {
+            width: 80px;
+        }
+        
+        .statBars {
+            display: flex;
+            gap: 4px;
+            flex: 1;
+            margin: 0 10px;
+        }
+        
+        .statBar {
+            width: 20px;
+            height: 15px;
+            background-color: gray;
+            border: 1px solid white;
+        }
+        
+        .statBar.active {
+            background-color: gold;
+        }
+        
+        .fade-log p {
+            animation: fadeOut 4s forwards;
+        }
+        
+        @keyframes fadeOut {
+            0% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <h1 style="text-align:center">Kurukshetra Battle</h1>
+    <div style="text-align:center; margin-top: 20px;">
+        <button onclick="startGame()" class="button" id="startBtn">Start Battle</button>
+    </div>
+
+    <div id="game" style="display:none">
+        <div id="battleArea">
+            <div class="stats">
+                <div><b><span id="opponentName">Enemy</span></b> Lv.<span id="level">1</span></div>
+                <div>HP: <span id="enemyHP">100</span></div>
+            </div>
+            <div class="bar" id="enemyHPBar"></div>
+            <div id="arena">
+                <img src="arjuna.png" id="playerImg">
+                <img src="ashwatama.png" id="enemyImg">
+                <div id="playerInfo">
+                    <div class="stats">
+                        <div><b>You</b> Lv.5</div>
+                        <div>HP: <span id="playerHP">100</span></div>
+                    </div>
+                    <div class="bar" id="playerHPBar"></div>
+                </div>
+            </div>
+        </div>
+        <div id="coinsDisplay">💰 Coins: <span id="coins">0</span></div>
+        <div id="timer">Time left: <span id="turnTimer">10</span>s</div>
+        <div id="options">
+            <button class="button" onclick="showAttackOptions()">FIGHT</button>
+            <button class="button" onclick="playerMove('guard')">GUARD</button>
+            <button class="button" onclick="openStatWindow()">STAT</button>
+            <button class="button" onclick="playerMove('giveup')">GIVE UP</button>
+        </div>
+        <div id="attackOptions" style="display:none;">
+            <button class="button" onclick="attackMove('Strike')">Strike (x<span id="strikeCount">5</span>)</button>
+            <button class="button" onclick="attackMove('Slash')">Slash (x<span id="slashCount">3</span>)</button>
+            <button class="button" onclick="attackMove('Pierce')">Pierce (x<span id="pierceCount">2</span>)</button>
+            <button class="button" onclick="useBhramastra()">Bhramastra ⚡ (ready in <span id="bhramastraCooldown">5</span>)</button>
+            <button class="button" onclick="backToMainOptions()">⬅ Back</button>
+        </div>
+
+        <div id="statWindow" style="display:none">
+            <div class="statRow">
+                <div class="statLabel">Attack</div>
+                <div class="statBars" id="atkBars"></div>
+                <button class="button" onclick="upgradeStat('atk')">15💰</button>
+            </div>
+            <div class="statRow">
+                <div class="statLabel">Defense</div>
+                <div class="statBars" id="defBars"></div>
+                <button class="button" onclick="upgradeStat('def')">15💰</button>
+            </div>
+            <div class="statRow">
+                <div class="statLabel">Health</div>
+                <div class="statBars" id="hpBars"></div>
+                <button class="button" onclick="upgradeStat('hp')">20💰</button>
+            </div>
+            <button class="button" onclick="backToMainOptions()">⬅ Back</button>
+        </div>
+
+        <div id="battleLog" class="fade-log"></div>
+    </div>
+
+    <script>
+        const enemySprites = [
+            "ashwatama.png",
+            "karna.png",
+            "bhishma.png",
+            "drona.png",
+            "shalya.png"
+        ];
+        const opponents = ["Ashwatthama", "Karna", "Bhishma", "Drona", "Duryodhana"];
+        let level = 0,
+            playerHP = 100,
+            maxHP = 100,
+            enemyHP = 100;
+        let coins = 0;
+        let bhramastraCooldown = 5,
+            bhramastraReady = 0;
+        let strikeCount = 15,
+            slashCount = 15,
+            pierceCount = 15;
+        let guarding = false,
+            turnTime = 10,
+            timerInterval;
+        let atkLevel = 0,
+            defLevel = 0,
+            hpLevel = 0;
+
+        function startGame() {
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('game').style.display = 'block';
+            renderStatBars();
+            nextLevel();
+        }
+
+        function updateBars() {
+            document.getElementById("playerHP").innerText = Math.max(playerHP, 0);
+            document.getElementById("enemyHP").innerText = Math.max(enemyHP, 0);
+            document.getElementById("playerHPBar").style.width = Math.max(playerHP, 0) / maxHP * 100 + "%";
+            document.getElementById("enemyHPBar").style.width = Math.max(enemyHP, 0) + "%";
+            document.getElementById("strikeCount").innerText = strikeCount;
+            document.getElementById("slashCount").innerText = slashCount;
+            document.getElementById("pierceCount").innerText = pierceCount;
+            document.getElementById("bhramastraCooldown").innerText = Math.max(bhramastraCooldown - bhramastraReady, 0);
+            document.getElementById("coins").innerText = coins;
+        }
+
+        function log(msg) {
+            const logDiv = document.getElementById("battleLog");
+            const p = document.createElement('p');
+            p.innerText = msg;
+            logDiv.appendChild(p);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function nextLevel() {
+            if (level >= opponents.length) {
+                log("🏆 You have defeated all warriors! Dharma wins the war!");
+                return;
+            }
+            maxHP = 100 + hpLevel * 20;
+            playerHP = maxHP;
+            enemyHP = 80 + level * 20;
+            bhramastraReady = 0;
+            document.getElementById("level").innerText = level + 1;
+            document.getElementById("opponentName").innerText = opponents[level];
+            updateBars();
+            log("⚔ ${opponents[level]} enters the battlefield!");
+            startTurnTimer();
+        }
+
+        function startTurnTimer() {
+            turnTime = 10;
+            document.getElementById("turnTimer").innerText = turnTime;
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                turnTime--;
+                document.getElementById("turnTimer").innerText = turnTime;
+                if (turnTime <= 0) {
+                    clearInterval(timerInterval);
+                    log("⏳ Time's up! You missed your turn.");
+                    enemyMove();
+                }
+            }, 1000);
+        }
+
+        function showAttackOptions() {
+            document.getElementById("options").style.display = "none";
+            document.getElementById("attackOptions").style.display = "grid";
+        }
+
+        function backToMainOptions() {
+            document.getElementById("options").style.display = "grid";
+            document.getElementById("attackOptions").style.display = "none";
+            document.getElementById("statWindow").style.display = "none";
+        }
+
+        function attackMove(type) {
+            let dmg = 0;
+            if (type === 'Strike' && strikeCount-- > 0) dmg = Math.floor(Math.random() * 10 + 10);
+            else if (type === 'Slash' && slashCount-- > 0) dmg = Math.floor(Math.random() * 15 + 15);
+            else if (type === 'Pierce' && pierceCount-- > 0) dmg = Math.floor(Math.random() * 25 + 20);
+            else return;
+            dmg += atkLevel * 5;
+            enemyHP -= dmg;
+            bhramastraReady++;
+            log("💥 ${type} dealt ${dmg} damage!");
+            updateBars();
+            backToMainOptions();
+            checkEnemyDefeat();
+        }
+
+        function useBhramastra() {
+            if (bhramastraReady < 5) {
+                log("⚠ Bhramastra is not ready yet!");
+                return;
+            }
+            const dmg = 60 + atkLevel * 5;
+            log("🕉 Arjuna summons Krishna. Krishna uses the Bhramastra!");
+            enemyHP -= dmg;
+            bhramastraReady = 0;
+            log("🌩 'Whenever dharma declines, I appear!' - Krishna");
+            log("🌩 Bhramastra hits for ${dmg} massive damage!");
+            updateBars();
+            backToMainOptions();
+            checkEnemyDefeat();
+        }
+
+        function playerMove(move) {
+            clearInterval(timerInterval);
+            if (move === 'guard') {
+                guarding = true;
+                log("🛡 You brace yourself.");
+            } else if (move === 'giveup') {
+                playerHP = 0;
+                log("🙇 You gave up. Dharma fades.");
+            }
+            updateBars();
+            if (playerHP > 0) setTimeout(enemyMove, 500);
+        }
+
+        function enemyMove() {
+            const actions = ['attack', 'attack', 'guard', 'heal'];
+            const move = actions[Math.floor(Math.random() * actions.length)];
+            if (move === 'attack') {
+                let dmg = Math.floor(Math.random() * 15 + 5 + level * 2);
+                if (guarding) dmg = Math.floor(dmg / 2 - defLevel * 2);
+                playerHP -= dmg;
+                log("⚔ ${opponents[level]} attacks for ${dmg} damage.");
+            } else if (move === 'guard') {
+                log("🛡 ${opponents[level]} is guarding!");
+            } else if (move === 'heal') {
+                let heal = Math.floor(Math.random() * 10 + 5);
+                enemyHP += heal;
+                log("✨ ${opponents[level]} heals for ${heal} HP.");
+            }
+            guarding = false;
+            updateBars();
+            if (playerHP <= 0) {
+                log("☠ You have fallen. The war is lost.");
+            } else {
+                startTurnTimer();
+            }
+        }
+
+        function checkEnemyDefeat() {
+            if (enemyHP <= 0) {
+                log("✅ ${opponents[level]} has been defeated!");
+                coins += 20 + level * 5;
+                level++;
+                setTimeout(nextLevel, 1500);
+            } else {
+                setTimeout(enemyMove, 1000);
+            }
+        }
+
+        function openStatWindow() {
+            document.getElementById("options").style.display = "none";
+            document.getElementById("statWindow").style.display = "grid";
+        }
+
+        function upgradeStat(stat) {
+            if (stat === 'atk' && coins >= 15 && atkLevel < 5) {
+                coins -= 15;
+                atkLevel++;
+            } else if (stat === 'def' && coins >= 15 && defLevel < 5) {
+                coins -= 15;
+                defLevel++;
+            } else if (stat === 'hp' && coins >= 20 && hpLevel < 5) {
+                coins -= 20;
+                hpLevel++;
+            } else {
+                log("❌ Cannot upgrade or maxed out.");
+                return;
+            }
+            log("✨ Upgraded ${stat.toUpperCase()} stat!");
+            renderStatBars();
+            updateBars();
+        }
+
+        function renderStatBars() {
+            ['atk', 'def', 'hp'].forEach(stat => {
+                const container = document.getElementById(stat + 'Bars');
+                container.innerHTML = '';
+                let val = stat === 'atk' ? atkLevel : stat === 'def' ? defLevel : hpLevel;
+                for (let i = 0; i < 5; i++) {
+                    let bar = document.createElement('div');
+                    bar.classList.add('statBar');
+                    if (i < val) bar.classList.add('active');
+                    container.appendChild(bar);
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>
